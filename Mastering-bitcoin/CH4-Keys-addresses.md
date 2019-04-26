@@ -145,11 +145,172 @@ Starting with a private key in the form of a randomly generated number k, we mul
 
   ->$G = 02 79BE667E F9DCBBAC 55A06295 CE870B07 029BFCDB 2DCE28D9 59F2815B 16F81798$
 
+  (compressed form)
+
 - K is the resulting public key, a point on the curve.
+
+- ***Result(public key) is (x, y) pair***
+
+- final result is $04 + string(x) + string(y)$ -> 1 hexa is 4bit so total 520bit (8 + 256 + 256)
+
+- It is too bit so compressed form is used -> y is ommited
+
+> y is odd
+>
+> -> $02 + string(x)$
+>
+> y is even
+>
+> -> $03 + string(x)$ 
+
+> In elliptic curve, * is one way operator is reverse(divide) is impossible
+>
+> -> That is why we can not guess private key by using public key
 
 ***Because the generator point is always the same for all bitcoin users, a private key k multiplied with G will always result in the same public key K.*** The relationship between k and K is fixed, but can only be calculated in one direction, from k to K. ***That’s why a bitcoin address (derived from K) can be shared with anyone and does not reveal the user’s private key (k).***
 
 
 
 ## Bitcoin Address
+
+A bitcoin address is a string of digits and characters that can be shared with anyone who wants to send you money. Addresses produced from public keys consist of a string of numbers and letters, beginning with the digit “1.”
+
+- Example : $1J7mdg5rbQyUHENYdx39WVWK7fsLpEoXZy$ 
+
+If we compare a bitcoin transaction to a paper check, the bitcoin address is the beneficiary, which is what we write on the line after “Pay to the order of.”
+
+> beneficiary : 수혜자, 수령인
+
+On a paper check, that beneficiary can sometimes be the name of a bank account holder, but can also include corporations, institutions, or even cash. ***Because paper checks do not need to specify an account, but rather use an abstract name as the recipient of funds,*** they are very flexible payment instruments. ***Bitcoin transactions use a similar abstraction, the bitcoin address, to make them very flexible.***
+
+A bitcoin address can represent the owner of a private/public key pair, or it can represent something
+else, such as a payment script, as we will see in ***“Pay-to-Script-Hash (P2SH)”*** 
+
+The bitcoin address is derived from the public key through the use of one-way cryptographic hashing.
+
+Starting with the public key K, we compute the SHA256 hash and then compute the RIPEMD160 hash of the result, producing a 160-bit (20-byte) number:
+
+- SHA : Secure Hash Algorithm
+- RIPEMD : RACE Integrity Primitives Evaluation Message Digest
+
+```
+A = RIPEMD160(SHA256(K))
+```
+
+- ***A bitcoin address is not the same as a public key. Bitcoin addresses are derived from a public key using a one-way function.*** 
+
+***Bitcoin addresses are almost always encoded as “Base58Check”***, which uses 58 characters (a Base58 number system) and a checksum to help human readability, avoid ambiguity, and protect against errors in address transcription and entry. ***Base58Check is also used in many other ways in bitcoin***, whenever there is a need for a user to read and correctly transcribe a number, such as a bitcoin address, a private key, an encrypted key, or a script hash.
+
+![public key to bitcoin address](.\img\process-to-bitcoin-address.png)
+
+
+
+
+
+### Base58 and Base58Check Encoding
+
+In order to represent long numbers in a compact way, using fewer symbols, many computer systems use mixed-alphanumeric representations with a base (or radix) higher than 10.
+
+Base64 is most commonly used to add binary attachments to email. ***Base58 is a text based binary-encoding format developed for use in bitcoin and used in many other cryptocurrencies.***(Base58 is a subset of Base64)
+
+```
+Example of bitcoin's Base58 address
+123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz
+```
+
+To add extra security against typos or transcription errors, Base58Check is a Base58 encoding format, frequently used in bitcoin, which has a built-in error-checking code. ***The checksum is an additional four bytes added to the end of the data*** that is being encoded. ***The checksum is derived from the hash of the encoded data and can therefore be used to detect and prevent transcription and typing errors.***
+
+ we compute the “double-SHA” checksum, meaning we apply the SHA256 hash algorithm twice on the previous result (prefix and data):
+
+```
+checksum = SHA256(SHA256(prefix+data))
+```
+
+From the resulting 32-byte hash (hash-of-a-hash), we take only the first four bytes. These four bytes serve as the error-checking code, or checksum. The checksum is concatenated (appended) to the end.
+
+ The result is composed of three items: ***a prefix, the data, and a checksum***. This result is encoded using the Base58 alphabet
+
+![Base58 check](.\img\Base58Check.bmp)
+
+***This result is a address which can receive a bitcoin & It is one way function so cannot guess public key by using this.***
+
+In bitcoin, most of the data presented to the user is Base58Check-encoded to make it compact, easy to read, and easy to detect errors.
+
+|             Type             | Version Prefix(hex) | Base58 result prefix |
+| :--------------------------: | :-----------------: | :------------------: |
+|       Bitcoin Address        |        0x00         |          1           |
+|  Pay-to-Script-Hash Address  |        0x05         |          3           |
+|   Bitcoin Testnet Address    |        0x6F         |        m or n        |
+|       Private Key WIF        |        0x80         |      5, K, or L      |
+| BIP-38 Encrypted Private Key |       0x0142        |          6P          |
+|  BIT-32 Extended public Key  |     0x0488B21E      |         xpub         |
+
+
+
+### Key Formats
+
+Both private and public keys can be represented in a number of different formats. These representations all encode the same number, even though they look different.
+
+#### Private Key formats
+
+The private key can be represented in a number of different formats, all of which correspond to the same 256-bit number.
+
+The WIF is used for import/export of keys between wallets and often used in QR code (barcode) representations of private keys.
+
+*Private key representations (encoding formats)*
+
+| Type           | Prefix | Description                                                  |
+| -------------- | ------ | ------------------------------------------------------------ |
+| Raw            | None   | 32 bytes                                                     |
+| Hex            | None   | 64 Hexadeciaml digits                                        |
+| WIF            | 5      | Base58check encoding:<br />Base58 with version prefix of 128-and 32-bit checksum |
+| WIF-compressed | K or L | As above, with added suffix 0x01 before encoding             |
+
+***-> One private key can be encoded differently***
+
+#### Public key formats
+
+Public keys are also presented in different ways, usually as either [***compressed or uncompressed public keys.***](###generating-a-public-key)
+
+It is usually presented with the prefix 04 followed by two 256-bit numbers: one for the x coordinate of the point, the other for the y coordinate. The prefix 04 is used to distinguish uncompressed public keys from compressed public keys that begin with a 02 or a 03.
+
+#### Compressed Private Keys
+
+Ironically, the term “compressed private key” is a misnomer, ***because when a private key is exported as WIF-compressed it is actually one byte longer than an “uncompressed” private key.***
+
+> misnomer : 부적절한
+
+That is because the ***private key has an added one-byte suffix, which signifies that the private key is from a newer wallet and should only be used to produce compressed public keys.***
+
+- Private keys are not themselves compressed and cannot be compressed.
+- The term *“compressed private key”* really means ***“private key from which only compressed public keys should be derived”***
+- *“uncompressed private key”* really means ***“private key from which only uncompressed public keys should be derived."***
+- ***You should only refer to the export format as “WIF-compressed” or “WIF”*** and not refer to the private key itself as “compressed” to avoid further confusion
+
+
+
+> WIF : Well informed format
+>
+> Private key to WIF
+>
+> 1. private key 
+>2. add a 0x80 byte in front of it, add a 0x01 byte at the end 3.
+> 3. perform SHA-256 
+> 4. perform SHA-256 again 
+> 5. Take the first 4 bytes of the second SHA-256 hash, this is checksum 
+> 6. Add 4 checksum bytes from point 5 at the end of the extended key from point 2
+> 7. Convert result from a byte sting into a base58 string using Base58Check encoding. This is wallet import Format
+
+
+
+| Format         | Private key                                                  |
+| -------------- | ------------------------------------------------------------ |
+| Hex            | $1E99423A4ED27608A15A2616A2B0E9E52CED330AC530EDCC32C8FFC6A526AEDD$ |
+| WIF            | $5J3mBbAH58CpQ3Y5RNJpUKPE62SQ5tfcvU2JpbnkeyhfsYB1Jcn$        |
+| Hex-compressed | $1E99423A4ED27608A15A2616A2B0E9E52CED330AC530EDCC32C8FFC6A526AEDD01$ |
+| WIF-compressed | $KxFC1jmwwCoACiCAWZ3eXa96mBM6tb3TYzGmf6YwgdGWZgawvrtJ$       |
+
+Remember, these formats are not used interchangeably. ***In a newer wallet that implements compressed public keys, the private keys will only ever be exported as WIF-compressed*** (with a K or L prefix).
+
+## Advanced Keys and Addresses
 
