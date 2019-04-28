@@ -314,3 +314,106 @@ Remember, these formats are not used interchangeably. ***In a newer wallet that 
 
 ## Advanced Keys and Addresses
 
+we will look at advanced forms of keys and addresses, such as:
+
+- Encrypted private keys
+- script and multisignature addresses
+- vanity addresses
+- paper wallets.
+
+### Encrypted Private Keys(BIP - 38)
+
+Private keys must remain secret.  But what if the backup itself is stolen or lost? These conflicting
+security goals led to the introduction of a portable and convenient standard for encrypting private keys in a way that can be understood by many different wallets and bitcoin clients, standardized by ***BIP-38***
+
+> BIP(Bitcoin Improvement Proposals) : Bitcoin Improvement Proposals are design documents providing information to the bitcoin community, or for describing a new feature for bitcoin or its processes or
+> environment.
+
+BIP-38 proposes a common standard for encrypting private keys with a passphrase and encoding them with Base58Check so that they can be stored securely on backup media, transported securely between wallets, or kept in any other conditions where the key might be exposed.
+
+> passphrase : 일반적으로 디지털 서명이나 암화화, 복호화에 사용되는 패스워드보다 긴 문자열로 된 비밀번호.
+
+A BIP-38 encryption scheme takes as input a bitcoin private key, usually encoded in the WIF, as a Base58Check string with the prefix of “5.” Additionally, the BIP-38 encryption scheme takes a *passphrase—a long password—usually composed of several words or a complex string of alphanumeric characters.* 
+
+> private key(prefix 5)  -> BIP-38 encryption -> Base58Check-encoded encrypted private key (prefix 6p)
+
+The result of the BIP-38 encryption scheme is a Base58Check-encoded encrypted private key that begins with the prefix 6P. ***If you see a key that starts with 6P, it is encrypted and requires a passphrase in order to convert (decrypt) it back into a WIF-formatted private key (prefix 5) that can be used in any wallet.*** Many wallet applications now ***recognize BIP-38- encrypted private keys and will prompt the user for a passphrase to decrypt and import the key.*** Third-party applications, such as the incredibly useful browser-based Bit Address (Wallet Details tab), can be used to decrypt BIP-38 keys.
+
+| Private key(WIF)      | 5J3mBbAH58CpQ3Y5RNJpUKPE62SQ5tfcvU2JpbnkeyhfsYB1Jcn        |
+| --------------------- | ---------------------------------------------------------- |
+| PassPharase           | MyTestPassphrase                                           |
+| Encrypted Key(BIP-38) | 6PRTHL6mWa48xSopbU1cKrVjpKbBZxcLRRCdctLJ3z5yxE87MobKoXdTsJ |
+
+### Pay-to-Script Hash(P2SH) and Multisig Addresses
+
+As we know, traditional bitcoin addresses begin with the number “1” and are derived from the public key, which is derived from the private key. ***Although anyone can send bitcoin to a “1” address, that bitcoin can only be spent by presenting the corresponding private key signature and public key hash.***
+
+***Bitcoin addresses that begin with the number “3” are pay-to-script hash (P2SH) addresses***, sometimes erroneously called multisignature or multisig addresses. They designate the beneficiary of a bitcoin transaction as the hash of a script, instead of the owner of a public key.
+
+> designate : 임명하다
+>
+> beneficiary : 수혜자
+
+Unlike transactions that “send” funds to traditional “1” bitcoin addresses, also known as a pay-to-public-key-hash (P2PKH), funds sent to “3” addresses require something more than the presentation of one public key hash and one private key signature as proof of ownership.
+
+A P2SH address is created from a transaction script, which defines who can spend a transaction output.
+
+Encoding a P2SH address involves using the same double-hash function as used during creation of a bitcoin address.(same process with (public key - bitcoin address))
+
+```
+script hash = RIPEMD160(SHA256(script))
+```
+
+The resulting “script hash” is encoded with Base58Check with a version prefix of 5, which results in an encoded address starting with a 3.
+
+#### Multisignature addresses and P2SH
+
+Currently, the most common implementation of the P2SH function is the multisignature address script.
+
+As the name implies, the underlying script requires more than one signature to prove ownership and therefore spend funds. The bitcoin multi-signature feature is designed to require M signatures (also known as the “threshold”) from a total of N keys, known as an M-of-N multisig, where M is equal to or less than
+N.
+
+This would be similar to a “joint account” as implemented in traditional banking where either spouse can spend with a single signature.
+
+> If there is 3 multi-signature, then at least need 2 or more signature to withdraw
+
+### Vanity Address
+
+> Vanity : 자만심, 허영심, 헛됨, 무의미
+
+***Vanity addresses are valid bitcoin addresses that contain human-readable messages.***
+
+For example, 1LoveBPzzD72PUXLzCkYAtGFYmK5vYNR33 is a valid address that contains the letters forming the word “Love” as the first four Base-58 letters.
+
+Although there are some optimizations in the vanity generation algorithm, the process essentially involves picking a private key at random, deriving the public key, deriving the bitcoin address, and checking to see if it matches the desired vanity pattern, repeating billions of times until a match is found.
+
+#### Generating vanity addresses
+
+It’s important to realize that a bitcoin address is simply a number represented by symbols in the Base58 alphabet.
+
+Generating a vanity address is a brute-force exercise: try a random key, check the resulting address to see if it matches the desired pattern, repeat until successful.
+
+> [Vanity address](https://medium.com/coinbundle/vanity-addresses-857fa4fb44be)
+>
+> Private key를 이용하여 자신이 원하는 문자열로 시작하는 bitcoin address를 만듬
+>
+> EX) HS로 시작하는 bitcoin address
+>
+> 방법 1. 직접 HS가 나올때까지 bitcoin address를 생성(문자열이 길어질수록 오래걸림)
+>
+> 방법 2. mining pool에 의뢰(맡김) -> 빠르지만 위험함(private key를 빼돌릴 수도 있음)
+
+#### Vanity address security
+
+***Vanity addresses can be used to enhance and to defeat security measures; they are truly a double-edged sword.*** Used to improve security, a distinctive address makes it harder for adversaries to substitute their own address and fool your customers into paying them instead of you. ***Unfortunately, vanity addresses also make it possible for anyone to create an address that resembles any random address, or even another vanity address, thereby fooling your customers.***
+
+> Attack can make a similar address
+
+### Paper Wallets
+
+Paper wallets are a very effective way to create backups or offline bitcoin storage, also known as “cold storage.”
+
+> Cold wallet : wallet which is not connected with internet
+>
+> Hot waller : wallet which is connected with internet
+
