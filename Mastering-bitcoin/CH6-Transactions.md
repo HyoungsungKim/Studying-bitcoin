@@ -179,5 +179,153 @@ For example, to calculate the amount paid in fees, you must know the sum of the 
 
 
 
-#### Transaction serialization -inputs
+#### Transaction serialization - inputs
+
+When transactions are serialized for transmission on the network, their inputs are encoded into a byte stream.
+
+### Transaction Fees
+
+Most transactions include transaction fees, which compensate the bitcoin miners for securing the network. ***Fees also serve as a security mechanism themselves, by making it economically infeasible for attackers to flood the network with transactions.***
+
+Transaction fees serve as an incentive to include (mine) a transaction into the next block and also as a disincentive against abuse of the system by imposing a small cost on every transaction.
+
+***Transaction fees are calculated based on the size of the transaction in kilobytes, not the value of the transaction in bitcoin.*** Overall, transaction fees are set based on market forces within the bitcoin network. Miners prioritize transactions based on many different criteria, including fees, and might even process transactions for free under certain circumstances.
+
+***Transaction fees affect the processing priority, meaning that a transaction with sufficient fees is likely to be included in the next block mined,*** whereas a transaction with insufficient or no fees might be delayed, processed on a best-effort basis after a few blocks, or not processed at all.
+
+- Transaction fee is not mandatory
+- Transactions without fees might be processed eventually.
+
+In Bitcoin Core, fee relay policies are set by the *minrelaytxfee* option. The current default *minrelaytxfee* is 0.0000 bitcoin or a hundredth of a millibitcoin per kilobyte. ***Therefore, by default, transactions with a fee less than 0.0001 bitcoin are treated as free and are only relayed if there is space in the mempool;*** otherwise, they are dropped. Bitcoin nodes can override the default fee relay policy by adjusting the value of *minrelaytxfee.*
+
+Any bitcoin service that creates transactions, including wallets, exchanges, retail applications, etc., must implement dynamic fees. Dynamic fees can be implemented through a third-party fee estimation service or with a built-in fee estimation algorithm. ***Fee estimation algorithms calculate the appropriate fee, based on capacity and the fees offered by “competing” transactions.***
+
+### Adding Fees to Transactions
+
+***The data structure of transactions does not have a field for fees. Instead, fees are implied as the difference between the sum of inputs and the sum of outputs.***
+
+```
+Fees = Sun(Inputs) - Sum(Outputs)
+```
+
+Let’s see how this works in practice, by looking at Alice’s coffee purchase again. Alice wants to spend 0.015 bitcoin to pay for coffee. To ensure this transaction is processed promptly, she will want to include a transaction fee, say 0.001. That will mean that the total cost of the transaction will be 0.016. Her wallet must therefore source a set of UTXO that adds up to 0.016 bitcoin or more and, if necessary, create change. Let’s say her wallet has a 0.2-bitcoin UTXO available. It will therefore need to consume this UTXO, create one output to Bob’s Cafe for 0.015, and a second output with 0.184 bitcoin in change back to her own wallet, ***leaving 0.001 bitcoin unallocated, as an implicit fee for the transaction.***
+
+> If sender have only small UTXOs and when it is used as input, block size will be big so although sender want to send small amount of UTXOs, sender have to pay high fee
+
+## Transaction Script and Script Language
+
+The bitcoin transaction script language, called *Script*, is a Forth-like reverse-polish notation stack-based execution language. ***When a transaction is validated, the unlocking script in each input is executed alongside the corresponding locking script to see if it satisfies the spending condition.***
+
+Today, most transactions processed through the bitcoin network have the form “Payment to receiver’s bitcoin address” and are based on a script called a *Pay-to-Public-Key- Hash script.* However, bitcoin transactions are not limited to the “Payment to receiver’s bitcoin address” script.
+
+In fact, locking scripts can be written to express a vast variety of complex conditions. In order to understand these more complex scripts, we must first understand the basics of transaction scripts and script language.
+
+### Turing Incompleteness
+
+> deliberately : 고의로, 의도적으로
+
+The bitcoin transaction script language contains many operators, but is deliberately limited in one important way—***there are no loops or complex flow control capabilities other than conditional flow control.*** This ensures that the language is not Turing Complete, meaning that scripts have limited complexity and predictable execution times.
+
+ Script is not a general-purpose language. ***These limitations ensure that the language cannot be used to create an infinite loop or other form of “logic bomb” that could be embedded in a transaction in a way that causes a denial-of-service attack against the bitcoin network.***
+
+> DDOS : Distributed denial-of-service attack
+
+### Stateless Verification
+
+The bitcoin transaction script language is stateless, in that there is no state prior to execution of the script, or state saved after execution of the script. ***Therefore, all the information needed to execute a script is contained within the script.***
+
+***If your system verifies a script, you can be sure that every other system in the bitcoin network will also verify the script, meaning that a valid transaction is valid for everyone and everyone knows this.*** This predictability of outcomes is an essential benefit of the bitcoin system.
+
+### Script Construction (Lock + Unlock)
+
+Bitcoin’s transaction validation engine relies on two types of scripts to validate transactions: 
+
+- A locking script 
+- An unlocking script.
+
+***A locking script is a spending condition placed on an output:*** it specifies the conditions that must be met to spend the output in the future.
+
+Historically, the locking script was ***called a scriptPubKey, because it usually contained a public key or bitcoin address (public key hash).***
+
+You will also see the locking script referred to as a ***witness script*** or more generally as a ***cryptographic puzzle***. These terms all mean the same thing, at different levels of abstraction.
+
+***An unlocking script is a script that “solves,” or satisfies, the conditions placed on an output by a locking script and allows the output to be spent.*** Unlocking scripts are part of every transaction input. ***Most of the time they contain a digital signature produced by the user’s wallet from his or her private key.***
+
+Historically, the unlocking script was ***called scriptSig, because it usually contained a digital signature.***  You will also see the unlocking script referred to as a ***witness***. In this book, we refer to it as an “unlocking script” to acknowledge the much broader range of locking script requirements, ***because not all unlocking scripts must contain signatures.***
+
+Every bitcoin validating node will validate transactions by executing the locking and unlocking scripts together. ***Each input contains an unlocking script and refers to a previously existing UTXO. The validation software will copy the unlocking script, retrieve the UTXO referenced by the input, and copy the locking script from that UTXO.*** The unlocking and locking script are then executed in sequence. The input is valid if the unlocking script satisfies the locking script conditions
+
+***Note that the UTXO is permanently recorded in the blockchain, and therefore is invariable and is unaffected by failed attempts to spend it by reference in a new transaction.*** Only a valid transaction that correctly satisfies the conditions of the output results in the output being considered as “spent” and removed from the set of unspent transaction outputs (UTXO set).
+
+> Basically UTXO is recorded permanently and only valid transaction can remove UTXO
+
+#### The script execution stack
+
+Bitcoin’s scripting language is called a stack-based language because it uses a data structure called a *stack.*
+
+> stack : Last in First out(LIFO)
+
+The scripting language executes the script by processing each item from left to right. Numbers (data constants) are pushed onto the stack.
+
+##### Separate execution of unlocking and locking scripts
+
+***In the original bitcoin client, the unlocking and locking scripts were concatenated and executed in sequence.*** For security reasons, this was changed in 2010, because of a vulnerability that allowed a malformed unlocking script to push data onto the stack and corrupt the locking script. ***In the current implementation, the scripts are executed separately with the stack transferred between the two executions, as described next.***
+
+ ***If the unlocking script is executed without errors (e.g., it has no “dangling” operators left over), the main stack (not the alternate stack) is copied and the locking script is executed.*** 
+
+***If the result of executing the locking script with the stack data copied from the unlocking script is “TRUE,” the unlocking script has succeeded in resolving the conditions imposed by the locking script*** and, therefore, the input is a valid authorization to spend the UTXO. If any result other than “TRUE” remains after execution of the combined script, the input is invalid because it has failed to satisfy the spending conditions placed on the UTXO.
+
+### Pay-to-Public-Key-hash(P2PKH)
+
+The vast majority of transactions processed on the bitcoin network spend outputs locked with a Pay-to-Public-Key-Hash or “P2PKH” script. ***These outputs contain a locking script that locks the output to a public key hash, more commonly known as a bitcoin address.***
+
+***An output locked by a P2PKH script can be unlocked (spent) by presenting a public key and a digital signature created by the corresponding private key***
+
+For example, let’s look at Alice’s payment to Bob’s Cafe again. Alice made a payment of 0.015 bitcoin to the cafe’s bitcoin address. That transaction output would have a locking script of the form:
+
+> Input contains unlocking script
+>
+> Output contains locking script
+
+```
+OP_DUP OP_HASH160 <Cafe Public Key Hash> OP_EQUALVERIFY OP_CHECKSIG
+```
+
+The *Cafe Public Key Hash* is equivalent to the bitcoin address of the cafe, without the Base58Check encoding.
+
+
+
+The preceding locking script can be satisfied with an unlocking script of the form:
+
+```
+<Cafe Signature> <Cafe Public Key>
+```
+
+The two scripts together would form the following combined validation script:
+
+```
+<Cafe Signature> <Cafe Public Key> OP_DUP OP_HASH160
+<Cafe Public Key Hash> OP_EQUALVERIFY OP_CHECKSIG
+```
+
+When executed, this combined script will evaluate to TRUE if, and only if, the unlocking script matches the conditions set by the locking script.
+
+> compare signature and public key in unlocking script
+>
+> -> if it is true, execute locking script
+>
+> -> or not true, it it invalid transaction
+
+In other words, ***the result will be TRUE if the unlocking script has a valid signature from the cafe’s private
+key that corresponds to the public key hash set as an encumbrance.***
+
+> Transaction data in the blockchain does not include any ID for a "sender" or "recipient".
+>
+> The script contains two components, a signature and a public key. 
+>
+> Outputs include receiver's public key and signature for comparing
+>
+> [More information](https://learnmeabitcoin.com/glossary/input)
+
+### Digital Signature(ECDSA)
 
