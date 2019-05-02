@@ -329,3 +329,108 @@ key that corresponds to the public key hash set as an encumbrance.***
 
 ### Digital Signature(ECDSA)
 
+So far, we have not delved into any detail about “digital signatures.” In this section we look at how digital signatures work and how they can present proof of ownership of a private key without revealing that private key.
+
+The digital signature algorithm used in bitcoin is the *Elliptic Curve Digital Signature Algorithm*, or *ECDSA*. ECDSA is the algorithm used for digital signatures based on elliptic curve private/public key pairs.
+
+A digital signature serves three purposes in bitcoin.
+
+- First, the signature proves that the owner of the private key, who is implication the owner of the funds, has authorized the spending of those funds.
+- Secondly, the proof of authorization is undeniable (nonrepudiation).
+
+> nonrepudiation : 부인방지
+
+- Thirdly, the signature proves that the transaction (or specific parts of the transaction) have not and cannot be modified by anyone after it has been signed.
+
+***Note that each transaction input is signed independently. This is critical, as neither the signatures nor the inputs have to belong to or be applied by the same “owners.”***
+
+***Each transaction input and any signature it may contain is completely independent of any other input or signature.*** Multiple parties can collaborate to construct transactions and sign only one input each.
+
+### How Digital Signature Work
+
+A digital signature is a mathematical scheme that consists of two parts.
+
+- The first part is an algorithm for ***creating a signature, using a private key (the signing key), from a message (the transaction).***
+- The second part is an algorithm that ***allows anyone to verify the signature, given also the message and a public key.***
+
+>Make signature : private key
+>
+>Verify signature : public key
+
+#### Creating digital signature
+
+The “message” being signed is the transaction. The signing key is the user’s private key. The result is the signature:
+
+```
+Sig = Fsig(Fhash(m),dA)
+```
+
+where:
+
+- ***dA is the signing private key***
+- m is the transaction (or parts of it)
+- Fhash is the hashing function
+- Fsig is the signing algorithm
+- Sig is the resulting signature
+
+The function Fsig produces a signature Sig that is composed of two values, commonly referred to as R and S: 
+
+```
+Sig = (R, S)
+```
+
+Now that the two values R and S have been calculated, they are serialized into a bytestream using an international standard encoding scheme called the ***Distinguished Encoding Rules, or DER.***
+
+#### Serialization of signatures (DER)
+
+sender's unlocking script:
+
+```
+3045022100884d142d86652a3f47ba4746ec719bbfbd040a570b1deccbb6498c75c4ae24cb02204b
+9f039ff08df09cbe9f6addac960298cad530a863ea8f53982c09db8f6e381301
+```
+
+That signature is a serialized byte-stream of the R and S values produced by sender’s wallet to prove sender owns the private key authorized to spend that output.
+
+### Verifying the Signature
+
+To verify the signature, one must have the signature (R and S), the serialized transaction, and the public key
+
+Essentially, verification of a signature means ***“Only the owner of the private key that generated this public key could have produced this signature on this transaction.”***
+
+The signature verification algorithm takes the message, the signer’s public key and the signature (R and S values), and returns TRUE if the signature is valid for this message and public key
+
+### Signature Hash Types(SIGHASH)
+
+The signature implies a commitment by the signer to specific transaction data. 
+
+***Bitcoin signatures have a way of indicating which part of a transaction’s data is included in the hash signed by the private key using a SIGHASH flag.*** The SIGHASH flag is a single byte that is appended to the signature. ***Every signature has a SIGHASH flag and the flag can be different from to input to input.*** 
+
+A transaction with three signed inputs may have three signatures with different SIGHASH flags, each signature signing (committing) different parts of the transaction.
+
+***Remember, each input may contain a signature in its unlocking script. As a result, a transaction that contains several inputs may have signatures with different SIGHASH flags that commit different parts of the transaction in each of the inputs.*** 
+
+### ECDSA Math
+
+The signature algorithm first generates an ephemeral (temporary) private public key pair. This temporary key pair is used in the calculation of the R and S values, after a transformation involving the signing private key and the transaction hash.
+
+ ***The temporary key pair is based on a random number k, which is used as the temporary private key.***
+
+### The Importance of Randomness in Signature
+
+The signature generation algorithm uses a random key k, as the basis for an ephemeral private/public key pair. ***The value of k is not important, as long as it is random.*** If the same value k is used to produce two signatures on different messages (transactions), then the signing private key can be calculated by anyone. ***Reuse of the same value for k in a signature algorithm leads to exposure of the private key!***
+
+***If you are implementing an algorithm to sign transactions in bitcoin, you must use RFC 6979 or a similarly deterministic-random algorithm to ensure you generate a different k for each transaction.***
+
+## Bitcoin Addresses, Balances, and Other Abstractions
+
+Many of the simplistic and familiar concepts from the earlier chapters, such as bitcoin addresses and balances, seem to be absent from the transaction structure. ***We saw that transactions don’t contain bitcoin addresses, perse, but instead operate through scripts that lock and unlock discrete values of bitcoin.***
+
+Constructing the current balance (displayed as “Final Balance”) requires a bit more work. The blockchain explorer keeps a separate database of the outputs that are currently unspent, the UTXO set. ***To maintain this database, the blockchain explorer must monitor the bitcoin network, add newly created UTXO, and remove spent UTXO, in real time, as they appear in unconfirmed transactions.***
+
+From the UTXO set, the blockchain explorer sums up the value of all unspent outputs referencing Bob’s public key hash and produces the “Final Balance” number shown to the user.
+
+Every day, hundreds of transactions that do not contain P2PKH outputs are confirmed on the blockchain. The blockcahin explores often present these with red warning messages saying they cannot decode an address.
+
+***->These are not strange transaction but these are containing more complex locking script than the common P2PKH***
+
