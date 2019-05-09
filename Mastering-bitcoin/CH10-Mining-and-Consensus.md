@@ -151,9 +151,29 @@ Eight bytes of extra nonce, plus the 4 bytes of “standard” nonce allow miner
 
 ### Mining Pools
 
+Miners now collaborate to form mining pools, pooling their hashing power and sharing the reward among thousands of participants.
 
+***How does a mining pool measure the individual contributions, so as to fairly distribute the rewards, without the possibility of cheating?*** The answer is to use bitcoin’s Proof-of-Work algorithm to measure each pool miner’s contribution, but set at a lower difficulty so that even the smallest pool miners win a share frequently enough to make it worthwhile to contribute to the pool.
 
+Let’s return to the analogy of a dice game. If the dice players are throwing dice with a goal of throwing less than four (the overall network difficulty), ***a pool would set an easier target, counting how many times the pool players managed to throw less than eight. When pool players throw less than eight (the pool share target), they earn shares, but they don’t win the game because they don’t achieve the game target (less than four).*** The pool players will achieve the easier pool target much more often, earning them shares very regularly, even when they don’t achieve the harder target of winning the game. Every now and then, one of the pool players will throw a combined dice throw of less than four and the pool wins. Then, the earnings can be distributed to the pool players based on the shares they earned. Even though the target of eight-or-less wasn't winning, it was a fair way to measure dice throws for the players, and it occasionally produces a less-than-four throw.
 
+#### Managed pools
+
+Most mining pools are “managed,” meaning that there is a company or individual running a pool server. The owner of the pool server is called the *pool operator*, and he charges pool miners a percentage fee of the earnings.
+
+The pool server is also connected to one or more full bitcoin nodes and has direct access to a full copy of the blockchain database. ***This allows the pool server to validate blocks and transactions on behalf of the pool miners, relieving them of the burden of running a full node.***
+
+#### Peer-to-peer mining pool(P2Pool)
+
+Managed pools create the possibility of cheating by the pool operator, who might direct the pool effort to double-spend transactions or invalidate blocks.
+
+Furthermore, centralized pool servers represent a single-point- of-failure. If the pool server is down or is slowed by a denial-of-service attack, the pool miners cannot mine.In 2011, to resolve these issues of centralization, ***a new pool mining method was proposed and implemented: P2Pool, a peer-to-peer mining pool without a central operator.***
+
+P2Pool works by decentralizing the functions of the pool server, implementing a parallel blockchain-like system called a *share chain*.
+
+A share chain is a blockchain running at a lower difficulty than the bitcoin blockchain. ***The share chain allows pool miners to collaborate in a decentralized pool by mining shares on the share chain at a rate of one share block every 30 seconds.***
+
+On P2Pool, individual pool miners construct their own candidate blocks, aggregating transactions much like solo miners, but then mine collaboratively on the share chain. P2Pool is a hybrid approach that has the advantage of much more granular payouts than solo mining, but without giving too much control to a pool operator like managed pools.
 
 ## Consensus Attacks
 
@@ -165,3 +185,46 @@ Eight bytes of extra nonce, plus the 4 bytes of “standard” nonce allow miner
 - Deny service to specific bitcoin participants(Blacklist)
 
 ## Changing the Consensus Rules
+
+The rules of consensus determine the validity of transactions and blocks.
+
+### Hard Forks
+
+There is another scenario in which the network may diverge into following two chains: a change in the consensus rules. This type of fork is called a hard fork, because after the fork the network does not reconverge onto a single chain. Instead, the two chains evolve independently.
+
+### Hard Forks:Software, Network, Mining and Chain
+
+Conceptually, we can think of a hard fork as developing in four stages: a software fork, a network fork, a mining fork, and a chain fork.
+
+The process begins when an alternative implementation of the client, with modified consensus rules, is created by developers.
+
+### Contentious hard Forks
+
+The risk of splitting the entire system into two competing systems is seen by many as an unacceptable risk. As a result, many developers are reluctant to use the hard fork mechanism to implement upgrades to the consensus rules, unless there is near-unanimous support from the entire network.
+
+Any hard fork proposals that do not have near-unanimous support are considered too “contentious” to attempt without risking a partition of the system.
+
+### Soft Forks
+
+Not all consensus rule changes cause a hard fork. Only consensus changes that are forward-incompatible cause a fork. If the change is implemented in such a way that an unmodified client still sees the transaction or block as valid under the previous rules, the change can happen without a fork.
+
+***In practice, a soft fork is not a fork at all. A soft fork is a forward-compatible change to the consensus rules that allows unupgraded clients to continue to operate in consensus with the new rules.***
+
+#### Soft forks redefining NOP opcodes
+
+For example, BIP-65 (CHECKLOCKTIMEVERIFY) reinterpreted the NOP2 opcode. Clients implementing BIP-65 interpret NOP2 as OP_CHECKLOCKTIMEVERIFY and impose an absolute locktime consensus rule on UTXO that contain this opcode in their locking scripts. This change is a soft fork because a transaction that is valid under BIP-65 is also valid on any client that is not implementing (ignorant of) BIP-65. To the old clients, the script contains an NOP code, which is ignored.
+
+#### Other ways to soft fork upgrade
+
+***Segwit is an architectural change to the structure of a transaction, which moves the unlocking script (witness) from inside the transaction to an external data structure (segregating it).*** 
+
+> Unlocking script is moved to external data structure
+>
+> So put more transactions in block 
+>
+> It is segwit
+
+Segwit was initially envisioned as a hard fork upgrade, as it modified a fundamental structure (transaction)
+
+***The mechanism used for this is a modification of the locking script of UTXO created under segwit rules, such that unmodified clients see the locking script as redeemable with any unlocking script whatsoever***. As a result, segwit can be introduced without requiring every node to upgrade or split from the chain: a soft fork.
+
